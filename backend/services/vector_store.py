@@ -8,7 +8,7 @@ class InMemoryVectorStore:
         self._vecs: list[np.ndarray] = []
 
     def upsert(self, id: str, vectors: List[List[float]]):
-        # For simplicity, store the mean vector for an id
+       
         arr = np.array(vectors)
         mean = arr.mean(axis=0)
         self._ids.append(id)
@@ -19,7 +19,7 @@ class InMemoryVectorStore:
             return []
         query = np.array(vectors).mean(axis=0)
         vecs = np.stack(self._vecs)
-        # cosine similarity
+        
         dot = vecs @ query
         vec_norms = np.linalg.norm(vecs, axis=1)
         q_norm = np.linalg.norm(query)

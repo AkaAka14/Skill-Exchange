@@ -27,7 +27,7 @@ async def match(profile: UserProfile):
         try:
             embeddings = await gemini.embed_texts(profile.skills)
         except Exception:
-            # Final fallback: local deterministic embeddings for dev/test
+           
             embeddings = await fallback.embed_texts(profile.skills)
 
    
