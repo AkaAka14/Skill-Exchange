@@ -47,24 +47,32 @@ const ReviewModal = ({ isOpen, onClose, reviewee, existingReview = null, onSucce
           <div className="flex flex-col items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground">Rating</span>
             <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  className="focus:outline-none transition-transform hover:scale-110"
-                  onMouseEnter={() => setHoverRating(star)}
-                  onMouseLeave={() => setHoverRating(0)}
-                  onClick={() => setRating(star)}
-                >
-                  <Star 
-                    className={`h-8 w-8 transition-colors ${
-                      (hoverRating || rating) >= star 
-                        ? 'fill-[hsl(var(--star-active))] text-[hsl(var(--star-active))]' 
-                        : 'fill-transparent text-[hsl(var(--star-inactive))]'
-                    }`} 
-                  />
-                </button>
-              ))}
+              {[1, 2, 3, 4, 5].map((star) => {
+  // Determine if the star should be "lit up"
+  const isFilled = (hoverRating || rating) >= star;
+  
+  return (
+    <button
+      key={star}
+      type="button"
+      className="focus:outline-none transition-transform hover:scale-110 p-1" // Added padding for better hit area
+      onMouseEnter={() => setHoverRating(star)}
+      onMouseLeave={() => setHoverRating(0)}
+      onClick={() => {
+        console.log("Selected rating:", star); // Debugging line
+        setRating(star);
+      }}
+    >
+      <Star 
+        className={`h-8 w-8 transition-colors ${
+          isFilled 
+            ? 'fill-yellow-400 text-yellow-400' // Using standard Tailwind colors to test
+            : 'fill-transparent text-muted-foreground'
+        }`} 
+      />
+    </button>
+  );
+})}
             </div>
           </div>
 

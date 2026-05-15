@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
 
 const Header = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -41,12 +41,12 @@ const Header = () => {
                 Matches
               </Link>
               <Link 
-                to="/profile" 
-                className={`text-sm font-medium transition-colors hover:text-primary ${isActive('/profile') ? 'text-primary' : 'text-muted-foreground'}`}
+                to={`/profile/${currentUser?.id}`} 
+                className={`text-sm font-medium transition-colors hover:text-primary ${location.pathname.startsWith('/profile') ? 'text-primary' : 'text-muted-foreground'}`}
               >
                 Profile
               </Link>
-            </>
+            </>   
           ) : null}
         </nav>
 

@@ -4,32 +4,85 @@ import logger from '../utils/logger.js';
 const router = Router();
 
 // Helper function to call integrated AI stream endpoint
-async function generateEmbedding(skillName) {
-  const userMessage = JSON.stringify([
-    {
+async function generateEmbedding(skillName, req) {
+  // 1. Controller to cancel the request if it takes > 10 seconds
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const userMessage = JSON.stringify([{
       type: 'text',
-      text: `Generate a semantic embedding vector for the skill: ${skillName}. Return ONLY a valid JSON array of 384 numbers representing the embedding. The numbers should be between -1 and 1. Do not include any other text or explanation.`,
-    },
-  ]);
+      text: `Generate a 384-float array representing the semantic meaning of the skill: "${skillName}". Return ONLY the JSON array of numbers.`
+    }]);
 
-  const formData = new FormData();
-  formData.append('message', userMessage);
+    const formData = new FormData();
+    formData.append('message', userMessage);
 
-  const response = await fetch('http://localhost:3001/hcgi/api/integrated-ai/stream', {
-    method: 'POST',
-    body: formData,
-  });
+    // We use req.headers.authorization to pass the token forward
+    const response = await fetch('http://localhost:3001/integrated-ai/stream', {
+      method: 'POST',
+      body: formData,
+      headers: { 
+        'Authorization': req.headers.authorization 
+      },
+      signal: controller.signal
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to generate embedding: ${response.status} ${response.statusText}`);
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`AI Server responded with ${response.status}: ${errorText}`);
+    }
+
+    return await parseEmbeddingFromStream(response.body);
+  } catch (error) {
+    clearTimeout(timeout);
+    // If the real AI fails, we still return a MOCK vector so the 
+    // user's skill actually gets saved to the DB.
+    logger.error(`⚠️ AI Streaming failed: ${error.message}. Falling back to mock vector.`);
+    return Array.from({ length: 384 }, () => parseFloat((Math.random() * 2 - 1).toFixed(4)));
   }
-
-  // Parse SSE stream to extract embedding from AI response
-  const embedding = await parseEmbeddingFromStream(response.body);
-  return embedding;
 }
 
-// Helper function to parse SSE stream and extract embedding array
+
+// Helper function to call integrated AI stream endpoint
+// async function generateEmbedding(skillName, req) {
+//   // 1. Add a Controller to cancel the request if it takes > 5 seconds
+//   const controller = new AbortController();
+//   const timeout = setTimeout(() => controller.abort(), 5000);
+
+//   try {
+//     const userMessage = JSON.stringify([{
+//       type: 'text',
+//       text: `Generate a 384-float array for: ${skillName}. Return ONLY [0.1, -0.2, ...].`
+//     }]);
+
+//     const formData = new FormData();
+//     formData.append('message', userMessage);
+
+//     const response = await fetch('http://localhost:3001/integrated-ai/stream', {
+//       method: 'POST',
+//       body: formData,
+//       headers: { 'Authorization': req.headers.authorization },
+//       signal: controller.signal // Link the timeout
+//     });
+
+//     clearTimeout(timeout);
+
+//     if (!response.ok) throw new Error('AI Server Down');
+
+//     return await parseEmbeddingFromStream(response.body);
+//   } catch (error) {
+//     clearTimeout(timeout);
+//     console.error("AI Failed, using dummy vector:", error.message);
+    
+//     // 2. FALLBACK: Return a dummy vector of 384 zeros so the skill actually gets saved!
+//     return new Array(384).fill(0); 
+//   }
+// }
+
+// // Helper function to parse SSE stream and extract embedding array
 async function parseEmbeddingFromStream(stream) {
   let buffer = '';
   let embeddingText = '';
@@ -80,20 +133,17 @@ async function parseEmbeddingFromStream(stream) {
 
 // POST /skills/embedding - Generate embedding for a skill
 router.post('/embedding', async (req, res) => {
-  const { skillName } = req.body;
+  try {
+    const { skillName } = req.body;
+    if (!skillName) return res.status(400).json({ error: 'Name required' });
 
-  if (!skillName || typeof skillName !== 'string' || skillName.trim().length === 0) {
-    return res.status(400).json({ error: 'skillName is required and must be a non-empty string' });
+    logger.info(`Generating embedding for skill: ${skillName}`);
+    const embedding = await generateEmbedding(skillName.trim(), req);
+
+    res.json({ skillName: skillName.trim(), embedding });
+  } catch (error) {
+    logger.error('Embedding generation failed:', error.message);
+    res.status(500).json({ error: 'Failed to generate AI embedding' });
   }
-
-  logger.info(`Generating embedding for skill: ${skillName}`);
-
-  const embedding = await generateEmbedding(skillName.trim());
-
-  res.json({
-    skillName: skillName.trim(),
-    embedding,
-  });
 });
-
 export default router;

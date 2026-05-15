@@ -23,7 +23,7 @@ function App() {
               <Route path="/auth" element={<AuthPage />} />
               
               <Route 
-                path="/profile" 
+                path="/profile/:id/*" 
                 element={
                   <ProtectedRoute>
                     <ProfilePage />

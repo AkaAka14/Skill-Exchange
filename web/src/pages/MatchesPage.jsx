@@ -23,45 +23,35 @@ const MatchesPage = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
-  const [apiMessage, setApiMessage] = useState('');
 
   const fetchMatchesData = useCallback(async () => {
     if (!currentUser?.id) return;
     
     setIsLoading(true);
     setError(null);
-    setApiMessage('');
     
     try {
-      // 1. Fetch user favorites to sync local state
+      // 1. Sync local favorites and want skills
       await getFavorites();
-      
-      // 2. Fetch the user's current 'want' skills for debugging/context
       const fetchedWantSkills = await getWantSkills(currentUser.id);
       setWantSkills(fetchedWantSkills);
       
-      // 3. Fetch semantic matches from Express backend
+      // 2. Fetch semantic matches from Express backend
+      // Note: apiServerClient should already handle the JSON parsing 
+      // depending on how you implemented its .get() method
       const response = await apiServerClient.get('/matches/semantic');
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch matches. Please try again.');
-      }
+      // If your apiServerClient returns the raw response object:
+      const data = response.data ? response.data : response;
       
-      const data = await response.json();
-      
-      // The backend returns { matches: [...], message: string }
-      let fetchedMatches = Array.isArray(data.matches) ? data.matches : [];
-      
-      // Ensure it's sorted descending by compatibilityScore
-      fetchedMatches.sort((a, b) => (b.compatibilityScore || 0) - (a.compatibilityScore || 0));
+      // Your backend currently returns an array directly: [ {userId, userName, ...}, ... ]
+      let fetchedMatches = Array.isArray(data) ? data : [];
       
       setMatches(fetchedMatches);
-      setApiMessage(data.message || '');
       
     } catch (err) {
       console.error('Error fetching matches data:', err);
-      setError(err.message);
+      setError(err.message || 'Failed to fetch matches. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -81,8 +71,9 @@ const MatchesPage = () => {
     if (searchQuery) {
       const lowerQ = searchQuery.toLowerCase();
       result = result.filter(match => 
-        match.user?.name?.toLowerCase().includes(lowerQ) ||
-        match.matchingSkills?.some(s => s.skillName?.toLowerCase().includes(lowerQ))
+        // Using match.userName because that's what the backend sends
+        match.userName?.toLowerCase().includes(lowerQ) ||
+        match.matchingSkills?.some(s => s.skillPair?.toLowerCase().includes(lowerQ))
       );
     }
     
@@ -92,40 +83,40 @@ const MatchesPage = () => {
   return (
     <div className="container mx-auto px-4 py-12">
       <Helmet>
-        <title>Semantic Matches | SkillSwap AI</title>
+        <title>AI Matches | SkillSwap</title>
       </Helmet>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>
-          <h1 className="text-3xl font-bold font-heading text-white flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             AI Skill Matches
             <Button 
               variant="outline" 
               size="icon" 
               onClick={fetchMatchesData}
               disabled={isLoading}
-              className="h-8 w-8 rounded-full border-white/10 hover:bg-white/5"
-              aria-label="Refresh matches"
+              className="h-8 w-8 rounded-full bg-transparent border-white/10 hover:bg-white/5"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin text-primary' : 'text-muted-foreground'}`} />
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
           </h1>
-          <p className="text-muted-foreground mt-2">Discover professionals based on semantic skill compatibility.</p>
+          <p className="text-muted-foreground mt-2">Discover partners based on deep skill compatibility.</p>
         </div>
         <div className="w-full md:w-auto">
-          <SearchBar onSearch={setSearchQuery} placeholder="Search matches..." />
+          <SearchBar onSearch={setSearchQuery} placeholder="Search names or skills..." />
         </div>
       </div>
 
+      {/* Skills Context Bar */}
       {wantSkills.length > 0 && !isLoading && (
-        <div className="mb-8 p-4 bg-secondary/30 rounded-xl border border-white/5">
-          <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
-            <ListChecks className="w-4 h-4 text-primary" />
-            Matching against your desired skills:
+        <div className="mb-8 p-4 bg-primary/5 rounded-xl border border-primary/10">
+          <h3 className="text-sm font-medium text-primary mb-3 flex items-center gap-2">
+            <ListChecks className="w-4 h-4" />
+            Matching your needs:
           </h3>
           <div className="flex flex-wrap gap-2">
             {wantSkills.map(skill => (
-              <span key={skill.id} className="text-xs bg-primary/10 text-primary-foreground border border-primary/20 px-2.5 py-1 rounded-md">
+              <span key={skill.id} className="text-xs bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full">
                 {skill.skillName}
               </span>
             ))}
@@ -135,101 +126,58 @@ const MatchesPage = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
         <TabsList className="bg-card border border-white/10">
-          <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-white">
-            All Matches
-          </TabsTrigger>
-          <TabsTrigger value="saved" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+          <TabsTrigger value="all">All Matches</TabsTrigger>
+          <TabsTrigger value="saved">
             <Heart className="h-4 w-4 mr-2" />
-            Saved Matches
+            Saved
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
       {error && (
-        <div className="mb-8 p-6 bg-destructive/10 border border-destructive/20 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 text-destructive-foreground">
-            <AlertCircle className="h-6 w-6 text-destructive shrink-0" />
-            <p className="font-medium">{error}</p>
+        <div className="mb-8 p-6 bg-destructive/10 border border-destructive/20 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive" />
+            <p className="text-destructive-foreground">{error}</p>
           </div>
-          <Button 
-            onClick={fetchMatchesData} 
-            className="bg-destructive hover:bg-destructive/90 text-white shrink-0"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
-          </Button>
+          <Button variant="outline" onClick={fetchMatchesData} size="sm">Retry</Button>
         </div>
       )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="border border-white/5 bg-card p-6 rounded-xl flex flex-col h-full">
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex gap-4 items-center">
-                  <Skeleton className="h-12 w-12 rounded-xl bg-white/5" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-32 bg-white/5" />
-                    <Skeleton className="h-3 w-24 bg-white/5" />
-                  </div>
-                </div>
-                <Skeleton className="h-12 w-16 rounded-lg bg-white/5" />
-              </div>
-              <Skeleton className="h-4 w-32 bg-white/5 mb-4" />
-              <div className="space-y-4">
-                <Skeleton className="h-8 w-full bg-white/5" />
-                <Skeleton className="h-8 w-full bg-white/5" />
-              </div>
-            </div>
-          ))}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-64 w-full rounded-xl bg-white/5" />)}
         </div>
-      ) : !error && filteredMatches.length > 0 ? (
+      ) : filteredMatches.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredMatches.map((match, index) => (
             <motion.div
               key={match.userId}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05, duration: 0.4 }}
-              className="h-full"
+              transition={{ delay: index * 0.05 }}
             >
               <MatchCard 
                 userId={match.userId}
-                user={match.user}
+                user ={match} 
                 compatibilityScore={match.compatibilityScore}
                 matchingSkills={match.matchingSkills}
               />
             </motion.div>
           ))}
         </div>
-      ) : !error ? (
-        <div className="py-20 flex flex-col items-center justify-center text-center border border-white/5 bg-card rounded-2xl">
-          {activeTab === 'saved' ? (
-            <>
-              <Heart className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-bold text-white font-heading mb-2">No saved matches</h3>
-              <p className="text-muted-foreground max-w-md">
-                You haven't saved any matches yet. Click the heart icon on a match card to save them here.
-              </p>
-            </>
-          ) : (
-            <>
-              <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-bold text-white font-heading mb-2">No matches found</h3>
-              <p className="text-muted-foreground max-w-md mb-6">
-                {apiMessage || (searchQuery 
-                  ? "Try adjusting your search criteria." 
-                  : "Add more 'want' skills to your profile to generate semantic AI matches.")}
-              </p>
-              {!searchQuery && (
-                <Button asChild className="bg-primary text-white hover:bg-primary/90">
-                  <a href="/profile">Update My Skills</a>
-                </Button>
-              )}
-            </>
-          )}
+      ) : (
+        <div className="py-20 flex flex-col items-center text-center border border-dashed border-white/10 rounded-2xl">
+          <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">No matches found</h3>
+          <p className="text-muted-foreground max-w-sm mb-6">
+            We couldn't find any skills that overlap with your needs right now. Try adding more specific "Want" skills!
+          </p>
+          <Button asChild>
+            <a href="/dashboard">Update Skills</a>
+          </Button>
         </div>
-      ) : null}
+      )}
     </div>
   );
 };

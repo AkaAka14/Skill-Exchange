@@ -10,6 +10,7 @@ import { useFavorites } from '@/hooks/useFavorites.js';
 import ChatWindow from './ChatWindow.jsx';
 
 const MatchCard = ({ userId, user, compatibilityScore, matchingSkills = [] }) => {
+  console.log("DEBUG - User Prop:", user?.userName);
   const { isFavorited, toggleFavorite } = useFavorites();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isFav, setIsFav] = useState(false);
@@ -21,7 +22,7 @@ const MatchCard = ({ userId, user, compatibilityScore, matchingSkills = [] }) =>
     }
   }, [userId, isFavorited]);
 
-  const userName = user?.name || 'Anonymous User';
+  const userName = user?.userName || user?.user?.userName || user?.name || 'Anonymous User';
   
   const getInitials = (name) => {
     if (!name) return 'U';
@@ -81,15 +82,15 @@ const MatchCard = ({ userId, user, compatibilityScore, matchingSkills = [] }) =>
               matchingSkills.map((skillMatch, idx) => (
                 <div key={idx} className="flex flex-col gap-1">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">{skillMatch.skillName}</span>
+                    <span className="text-muted-foreground">{skillMatch.skillPair}</span>
                     <span className="text-xs font-medium text-foreground">
-                      {Math.round(skillMatch.similarity * 100)}%
+                      {Math.round((skillMatch.score||0) * 100)}%
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-primary rounded-full" 
-                      style={{ width: `${Math.round(skillMatch.similarity * 100)}%` }}
+                      style={{ width: `${Math.round((skillMatch.score ||0)* 100)}%` }}
                     />
                   </div>
                 </div>

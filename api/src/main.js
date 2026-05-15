@@ -13,7 +13,7 @@ import { BodyLimit } from './constants/common.js';
 
 const app = express();
 
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 
 process.on('uncaughtException', (error) => {
 	logger.error('Uncaught exception:', error);

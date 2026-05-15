@@ -28,10 +28,11 @@ export const useReviews = () => {
 
   const getAverageRating = useCallback(async (userId) => {
     const reviews = await getReviewsForUser(userId);
-    if (reviews.length === 0) return { average: 0, count: 0 };
-    const sum = reviews.reduce((acc, rev) => acc + rev.rating, 0);
+    if (!reviews || reviews.length === 0) return { average: 0, count: 0 };
+    const sum = reviews.reduce((acc, rev) => acc + (Number(rev.rating) || 0), 0);
+    const avg = sum / reviews.length;
     return {
-      average: (sum / reviews.length).toFixed(1),
+      average: isNaN(avg) ? 0 : avg.toFixed(1),
       count: reviews.length
     };
   }, [getReviewsForUser]);

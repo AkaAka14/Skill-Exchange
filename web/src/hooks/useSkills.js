@@ -52,24 +52,18 @@ export const useSkills = () => {
   }, []);
 
   const generateSkillEmbedding = async (skillName) => {
-    try {
-      const response = await apiServerClient.fetch('/skills/embedding', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skillName })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to generate embedding');
-      }
-      
-      const data = await response.json();
-      return data.embedding;
-    } catch (err) {
-      console.error('Embedding generation error:', err);
-      return null;
-    }
-  };
+  try {
+    const response = await apiServerClient.post('/skills/embedding', { 
+      skillName 
+    });
+    
+    return response.data.embedding;
+    
+  } catch (err) {
+    console.error('Embedding generation error:', err);
+    return null;
+  }
+};
 
   const addSkill = async (skillData) => {
     if (!currentUser) return null;

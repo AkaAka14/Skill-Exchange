@@ -26,10 +26,12 @@ const ReviewSection = ({ user }) => {
     setReviews(revs);
     setStats(st);
     
-    if (currentUser) {
-      const existing = revs.find(r => r.reviewerId === currentUser.id);
-      setUserExistingReview(existing || null);
-    }
+      const existing = revs.find(r => {
+      const rId = typeof r.reviewerId === 'string' ? r.reviewerId : r.reviewerId.id;
+      return rId === currentUser.id;
+      });
+    setUserExistingReview(existing);
+
   };
 
   useEffect(() => {
@@ -63,18 +65,20 @@ const ReviewSection = ({ user }) => {
         {/* Stats Summary */}
         <div className="flex items-center gap-4 mb-8 p-4 bg-secondary/30 rounded-xl border border-white/5">
           <div className="flex items-center justify-center h-16 w-16 rounded-full bg-primary/10 text-primary">
-            <span className="text-2xl font-bold font-heading">{stats.average}</span>
+            <span className="text-2xl font-bold font-heading">{Number(stats.average) || 0.0}</span>
           </div>
           <div>
             <div className="flex gap-1 mb-1">
               {[1, 2, 3, 4, 5].map(star => (
                 <Star 
                   key={star} 
-                  className={`h-4 w-4 ${star <= Math.round(stats.average) ? 'fill-[hsl(var(--star-active))] text-[hsl(var(--star-active))]' : 'fill-transparent text-[hsl(var(--star-inactive))]'}`} 
+                  className={`h-4 w-4 ${star <= Math.round(Number(stats.average)) ? 'fill-yellow-400'
+                    : 'fill-none text-muted-foreground'
+                  }`} 
                 />
               ))}
             </div>
-            <p className="text-sm text-muted-foreground">Based on {stats.count} review{stats.count !== 1 ? 's' : ''}</p>
+            <p className="text-sm text-muted-foreground">Based on {stats.count} reviews</p>
           </div>
         </div>
 
