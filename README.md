@@ -1,76 +1,401 @@
-# 🤝 SkillExchange – Smart Peer-to-Peer Skill Swapping Platform
+# 🤝 SkillExchange — AI-Powered Peer-to-Peer Skill Swapping Platform
 
-Welcome to **SkillExchange**, a modern platform developed to facilitate knowledge sharing and skill swapping. This system revolutionizes how people learn by matching individuals who want to learn a skill with those who possess it, creating a mutual exchange ecosystem.
+SkillExchange is a modern full-stack platform designed to revolutionize collaborative learning through a peer-to-peer skill exchange ecosystem.
 
----
-
-## 🚀 Problem Statement
-Traditional learning platforms often require high subscription fees or follow a one-way teaching model. Our solution tackles this by:
-*   **Democratizing Education**: Removing financial barriers through a "swap" economy.
-*   **Smart Matching**: Connecting users based on complementary skill sets.
-*   **Location & Preference Awareness**: Incorporating user proximity and availability.
-*   **Verified Exchanges**: Ensuring trust through community-driven ratings.
+Instead of paying for expensive courses or relying on one-way teaching systems, users can teach what they know and learn what they need by connecting with compatible learners and mentors across multiple domains.
 
 ---
 
-## 🧠 Solution Overview
-SkillExchange is a full-stack monorepo platform that:
-*   **Profiles Users**: Captures "Skills to Teach" and "Skills to Learn."
-*   **Algorithmic Matching**: Uses a matching engine to suggest compatible partners.
-*   **Real-Time Interaction**: Facilitates communication between matches.
-*   **Integrated Backend**: Uses PocketBase for Auth and Node.js for business logic.
+# 🚀 Vision
+
+To democratize education by enabling accessible, community-driven learning through intelligent skill matchmaking.
 
 ---
 
-## 🔧 Tech Stack
+# 🌟 Key Highlights
 
-| Layer | Tech Used |
-| :--- | :--- |
-| **Frontend** | React · Tailwind CSS · Vite · Shadcn UI |
-| **Backend Logic** | Node.js · Express · PocketBase SDK |
-| **Authentication** | PocketBase Auth Service |
-| **Database** | PocketBase (SQLite/Real-time) |
-
----
-
-## ✨ Features
-*   **AI-Driven Matching**: Suggests users based on an overlap of "haves" and "wants."
-*   **Dual-Dashboard System**: Separate views for managing learning and teaching.
-*   **Real-Time Auth**: Instant login and session management via PocketBase.
-*   **Skill Catalog**: A searchable database of categories (Tech, Arts, Languages, etc.).
-*   **Modern UI**: Built with Tailwind CSS and Shadcn for a responsive experience.
+✅ AI-powered compatibility matching  
+✅ Peer-to-peer skill exchange economy  
+✅ Real-time communication system  
+✅ Reputation & trust-based ecosystem  
+✅ Geo-aware mentor discovery  
+✅ Modern scalable architecture  
+✅ Responsive and intuitive UI  
 
 ---
 
-## 📂 Repository Structure
+# 🧠 Problem Statement
+
+Traditional learning platforms often:
+- require expensive subscriptions
+- promote one-way teaching
+- lack personalization
+- ignore community-based learning
+
+SkillExchange solves this by creating a collaborative learning marketplace where users exchange knowledge instead of money.
+
+---
+
+# 💡 Solution Overview
+
+SkillExchange intelligently matches users based on:
+- skills they can teach
+- skills they want to learn
+- availability overlap
+- proximity/location
+- experience level
+- reputation scores
+
+The platform creates mutually beneficial learning partnerships using a smart recommendation engine.
+
+---
+
+# ⚙️ Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React · Vite · Tailwind CSS · Shadcn UI |
+| Backend | Node.js · Express.js |
+| Authentication | PocketBase Auth |
+| Database | PocketBase (SQLite + Realtime) |
+| Realtime Communication | Socket.IO / PocketBase Realtime |
+| AI Matching | Embeddings · Cosine Similarity |
+| Maps & Location | Leaflet · OpenStreetMap |
+| Deployment | Vercel · Render / Railway |
+
+---
+
+# 🧩 Core Features
+
+## 🔍 AI-Powered Skill Matching
+- Intelligent compatibility scoring
+- Semantic skill similarity detection
+- Personalized partner recommendations
+
+### Compatibility Formula
+
+```math
+Compatibility =
+0.4(SkillMatch)
++ 0.15(Location)
++ 0.15(Availability)
++ 0.1(Level)
++ 0.1(Rating)
++ 0.1(Goals)
+```
+
+---
+
+## 🌐 Geo-Aware Recommendations
+- Nearby mentor discovery
+- Distance-aware recommendations
+- Hybrid online/offline learning support
+
+---
+
+## 💬 Real-Time Communication
+- Instant messaging
+- Typing indicators
+- Session requests
+- Real-time updates
+
+---
+
+## ⭐ Reputation & Trust System
+- Ratings & reviews
+- Skill endorsements
+- Session completion tracking
+- Reliability scores
+
+---
+
+## 📅 Session Scheduling
+- Availability management
+- Session booking
+- Calendar integration
+- Learning reminders
+
+---
+
+## 🎯 Personalized Dashboards
+### Learner Dashboard
+- Recommended mentors
+- Ongoing sessions
+- Learning roadmap
+
+### Teacher Dashboard
+- Skill requests
+- Session management
+- Reputation analytics
+
+---
+
+# 🏗️ System Architecture
+
 ```plaintext
-Skill-Exchange/
-├── web/            # React frontend, Tailwind config, Shadcn components
-├── api/            # Node.js/Express backend for matching logic
-├── pb_data/        # PocketBase database files (Excluded from Git)
-├── pocketbase.exe  # PocketBase server executable
-└── README.md       # Project documentation
-
-## 🧩 Key Modules
-
-### 🌐 Frontend (`web/`)
-*   **Auth Context**: Global state management for user sessions, ensuring seamless login/logout flows.
-*   **Match Interface**: High-performance UI used to visualize potential skill partners and exchange opportunities.
-*   **Lib Clients**: Centralized instances for API and PocketBase connections to ensure dry, maintainable code.
-
-### ⚙️ Backend (`api/`)
-*   **Matching Engine**: Intelligent logic that calculates compatibility scores based on user "haves" and "wants."
-*   **Server Logic**: Robust Express routes designed for secure and efficient data processing.
+                ┌─────────────────┐
+                │   Frontend UI   │
+                │ React + Vite    │
+                └────────┬────────┘
+                         │
+                         ▼
+                ┌─────────────────┐
+                │  Express API    │
+                │ Business Logic  │
+                └────────┬────────┘
+                         │
+        ┌────────────────┼────────────────┐
+        ▼                ▼                ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│ Matching    │  │ Realtime    │  │ Notification│
+│ Engine      │  │ Chat System │  │ Service     │
+└──────┬──────┘  └──────┬──────┘  └─────────────┘
+       │                │
+       └────────┬───────┘
+                ▼
+        ┌────────────────┐
+        │  PocketBase DB │
+        │ Auth + Storage │
+        └────────────────┘
+```
 
 ---
 
-## 🚀 Getting Started
+# 📂 Project Structure
 
-### 📋 Prerequisites
-*   **Node.js & npm**: Installed on your local machine.
-*   **PocketBase Executable**: Ensure `pocketbase.exe` is located in the root directory.
+```plaintext
+SkillExchange/
+│
+├── web/                    # Frontend Application
+│   ├── components/
+│   ├── pages/
+│   ├── context/
+│   ├── hooks/
+│   ├── services/
+│   ├── utils/
+│   └── features/
+│
+├── api/                    # Backend Services
+│   ├── routes/
+│   ├── controllers/
+│   ├── middleware/
+│   ├── services/
+│   ├── matching/
+│   ├── sockets/
+│   ├── ai/
+│   └── utils/
+│
+├── shared/
+│   ├── constants/
+│   └── types/
+│
+├── pb_data/                # PocketBase Database Files
+├── pocketbase.exe
+└── README.md
+```
 
-### Backend Setup (PocketBase)
-In your first terminal, run:
+---
+
+# 🧠 Matching Engine
+
+The matching engine calculates compatibility using:
+- skill overlap
+- semantic similarity
+- location proximity
+- learning goals
+- availability overlap
+- community reputation
+
+---
+
+# 🔥 AI Features
+
+## Semantic Skill Matching
+Example:
+- "React Developer"
+- "Frontend Engineer"
+- "Web Development"
+
+can intelligently map together using embeddings.
+
+---
+
+## AI Learning Path Generation
+Input:
+```plaintext
+I want to become a Machine Learning Engineer
+```
+
+Output:
+```plaintext
+Python → Statistics → ML → Deep Learning → MLOps
+```
+
+---
+
+## Smart Match Explanations
+Instead of:
+```plaintext
+85% Match
+```
+
+The system explains:
+- shared interests
+- complementary goals
+- availability compatibility
+
+---
+
+# 🔒 Security Features
+
+- JWT Authentication
+- Secure Session Handling
+- Input Validation
+- Rate Limiting
+- Protected Routes
+- Role-Based Access Control
+
+---
+
+# 📈 Future Enhancements
+
+- 🎥 Video call integration
+- 🧠 LLM-powered mentorship assistant
+- 🏆 Gamification system
+- 📜 Blockchain-based certificates
+- 🌍 Multi-language support
+- 📱 Mobile application
+
+---
+
+# 🚀 Getting Started
+
+# 1️⃣ Clone Repository
+
+```bash
+git clone https://github.com/yourusername/SkillExchange.git
+cd SkillExchange
+```
+
+---
+
+# 2️⃣ Install Dependencies
+
+## Frontend
+
+```bash
+cd web
+npm install
+```
+
+## Backend
+
+```bash
+cd ../api
+npm install
+```
+
+---
+
+# 3️⃣ Start PocketBase
+
+From root directory:
+
 ```powershell
 ./pocketbase.exe serve
+```
+
+PocketBase dashboard:
+```plaintext
+http://127.0.0.1:8090/_/
+```
+
+---
+
+# 4️⃣ Run Backend
+
+```bash
+cd api
+npm run dev
+```
+
+---
+
+# 5️⃣ Run Frontend
+
+```bash
+cd web
+npm run dev
+```
+
+---
+
+# 🌐 Environment Variables
+
+## Backend `.env`
+
+```env
+PORT=5000
+POCKETBASE_URL=http://127.0.0.1:8090
+JWT_SECRET=your_secret_key
+```
+
+## Frontend `.env`
+
+```env
+VITE_API_URL=http://localhost:5000
+VITE_POCKETBASE_URL=http://127.0.0.1:8090
+```
+
+---
+
+# 📊 Scalability Considerations
+
+- Recommendation caching
+- WebSocket optimization
+- Async job queues
+- CDN-based media delivery
+- Vector database integration
+- Microservice-ready architecture
+
+---
+
+# 🧪 Example Use Case
+
+### User A
+Teaches:
+- React
+- UI/UX
+
+Wants to Learn:
+- Machine Learning
+
+### User B
+Teaches:
+- Machine Learning
+
+Wants to Learn:
+- Frontend Development
+
+✅ SkillExchange identifies mutual compatibility and recommends a peer-learning partnership.
+
+---
+
+# 👨‍💻 Contributors
+
+Built with ❤️ by Akansha Patel.
+
+---
+
+# 📜 License
+
+This project is licensed under the MIT License.
+
+---
+
+# 🌍 Connect
+
+If you like this project, feel free to:
+⭐ Star the repository  
+🍴 Fork the project  
+🤝 Contribute improvements  
