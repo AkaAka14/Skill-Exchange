@@ -1,36 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Sparkles, MessageCircle, Heart, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import pb from '@/lib/pocketbaseClient';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useFavorites } from '@/hooks/useFavorites.js';
+import apiServerClient from '@/lib/apiServerClient';
 import ChatWindow from './ChatWindow.jsx';
 
 const MatchCard = ({ userId, user, compatibilityScore, matchingSkills = [] }) => {
-  console.log("DEBUG - User Prop:", user?.userName);
-  const { isFavorited, toggleFavorite } = useFavorites();
+  const { toggleFavorite } = useFavorites();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isFav, setIsFav] = useState(false);
   const [isTogglingFav, setIsTogglingFav] = useState(false);
 
   useEffect(() => {
-    if (userId) {
-      setIsFav(isFavorited(userId));
-    }
-  }, [userId, isFavorited]);
+    if (!userId) return;
+    apiServerClient.get(`/favorites/${userId}/status`)
+      .then(data => setIsFav(data.favorited))
+      .catch(() => {});
+  }, [userId]);
 
   const userName = user?.userName || user?.user?.userName || user?.name || 'Anonymous User';
-  
+
   const getInitials = (name) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
-  // Safely construct avatar URL mapping standard object to pocketbase expected format
-  const avatarUrl = user?.avatar ? pb.files.getUrl({ id: user.id || userId, collectionId: '_pb_users_auth_' }, user.avatar) : '';
+  // The matches API already returns a full Cloudinary secure_url (or empty string)
+  const avatarUrl = user?.userAvatar || user?.avatar || '';
 
   const handleToggleFavorite = async () => {
     if (!userId) return;

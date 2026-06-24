@@ -1,149 +1,93 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
+import Skill from '../models/Skill.js';
+import { requireAuth } from '../middleware/auth.js';
+import { generateEmbedding } from '../utils/embeddings.js';
 import logger from '../utils/logger.js';
 
 const router = Router();
 
-// Helper function to call integrated AI stream endpoint
-async function generateEmbedding(skillName, req) {
-  // 1. Controller to cancel the request if it takes > 10 seconds
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-
-  try {
-    const userMessage = JSON.stringify([{
-      type: 'text',
-      text: `Generate a 384-float array representing the semantic meaning of the skill: "${skillName}". Return ONLY the JSON array of numbers.`
-    }]);
-
-    const formData = new FormData();
-    formData.append('message', userMessage);
-
-    // We use req.headers.authorization to pass the token forward
-    const response = await fetch('http://localhost:3001/integrated-ai/stream', {
-      method: 'POST',
-      body: formData,
-      headers: { 
-        'Authorization': req.headers.authorization 
-      },
-      signal: controller.signal
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI Server responded with ${response.status}: ${errorText}`);
-    }
-
-    return await parseEmbeddingFromStream(response.body);
-  } catch (error) {
-    clearTimeout(timeout);
-    // If the real AI fails, we still return a MOCK vector so the 
-    // user's skill actually gets saved to the DB.
-    logger.error(`⚠️ AI Streaming failed: ${error.message}. Falling back to mock vector.`);
-    return Array.from({ length: 384 }, () => parseFloat((Math.random() * 2 - 1).toFixed(4)));
-  }
-}
+router.use(requireAuth);
 
 
-// Helper function to call integrated AI stream endpoint
-// async function generateEmbedding(skillName, req) {
-//   // 1. Add a Controller to cancel the request if it takes > 5 seconds
-//   const controller = new AbortController();
-//   const timeout = setTimeout(() => controller.abort(), 5000);
+router.get('/', async (req, res) => {
+	try {
+		const { userId, skillType } = req.query;
+		const filter = {};
 
-//   try {
-//     const userMessage = JSON.stringify([{
-//       type: 'text',
-//       text: `Generate a 384-float array for: ${skillName}. Return ONLY [0.1, -0.2, ...].`
-//     }]);
+		if (userId) {
+			if (!mongoose.isValidObjectId(userId)) {
+				return res.status(400).json({ error: 'Invalid userId' });
+			}
+			filter.userId = userId;
+		}
+		if (skillType) {
+			if (!['have', 'want'].includes(skillType)) {
+				return res.status(400).json({ error: 'skillType must be "have" or "want"' });
+			}
+			filter.skillType = skillType;
+		}
 
-//     const formData = new FormData();
-//     formData.append('message', userMessage);
-
-//     const response = await fetch('http://localhost:3001/integrated-ai/stream', {
-//       method: 'POST',
-//       body: formData,
-//       headers: { 'Authorization': req.headers.authorization },
-//       signal: controller.signal // Link the timeout
-//     });
-
-//     clearTimeout(timeout);
-
-//     if (!response.ok) throw new Error('AI Server Down');
-
-//     return await parseEmbeddingFromStream(response.body);
-//   } catch (error) {
-//     clearTimeout(timeout);
-//     console.error("AI Failed, using dummy vector:", error.message);
-    
-//     // 2. FALLBACK: Return a dummy vector of 384 zeros so the skill actually gets saved!
-//     return new Array(384).fill(0); 
-//   }
-// }
-
-// // Helper function to parse SSE stream and extract embedding array
-async function parseEmbeddingFromStream(stream) {
-  let buffer = '';
-  let embeddingText = '';
-
-  const textStream = stream.pipeThrough(new TextDecoderStream());
-
-  for await (const chunk of textStream) {
-    buffer += chunk;
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) {
-        continue;
-      }
-
-      const jsonStr = line.slice(6);
-
-      if (jsonStr === '[DONE]') {
-        break;
-      }
-
-      try {
-        const event = JSON.parse(jsonStr);
-        if (event.type === 'content' && event.data?.content) {
-          embeddingText += event.data.content;
-        }
-      } catch (e) {
-        // Skip invalid JSON lines
-      }
-    }
-  }
-
-  // Extract JSON array from the response text
-  const jsonMatch = embeddingText.match(/\[\s*-?\d+\.?\d*[\s,\-\d.]*\]/);
-  if (!jsonMatch) {
-    throw new Error('Could not extract embedding array from AI response');
-  }
-
-  const embedding = JSON.parse(jsonMatch[0]);
-
-  if (!Array.isArray(embedding) || embedding.length !== 384) {
-    throw new Error(`Invalid embedding format: expected array of 384 numbers, got ${Array.isArray(embedding) ? embedding.length : 'non-array'}`);
-  }
-
-  return embedding;
-}
-
-// POST /skills/embedding - Generate embedding for a skill
-router.post('/embedding', async (req, res) => {
-  try {
-    const { skillName } = req.body;
-    if (!skillName) return res.status(400).json({ error: 'Name required' });
-
-    logger.info(`Generating embedding for skill: ${skillName}`);
-    const embedding = await generateEmbedding(skillName.trim(), req);
-
-    res.json({ skillName: skillName.trim(), embedding });
-  } catch (error) {
-    logger.error('Embedding generation failed:', error.message);
-    res.status(500).json({ error: 'Failed to generate AI embedding' });
-  }
+		const skills = await Skill.find(filter).sort({ createdAt: -1 });
+		res.json(skills.map((s) => s.toSafeObject()));
+	} catch (error) {
+		logger.error('List skills error:', error.message);
+		res.status(500).json({ error: 'Failed to fetch skills' });
+	}
 });
+
+router.post('/', async (req, res) => {
+	try {
+		const { skillName, skillType } = req.body;
+
+		if (!skillName?.trim()) {
+			return res.status(400).json({ error: 'skillName is required' });
+		}
+		if (!['have', 'want'].includes(skillType)) {
+			return res.status(400).json({ error: 'skillType must be "have" or "want"' });
+		}
+
+		let embedding = [];
+		try {
+			embedding = await generateEmbedding(skillName.trim());
+		} catch (err) {
+			
+			logger.error(`Embedding generation failed for "${skillName}": ${err.message}`);
+		}
+
+		const skill = await Skill.create({
+			userId: req.userId,
+			skillName: skillName.trim(),
+			skillType,
+			embedding,
+		});
+
+		res.status(201).json(skill.toSafeObject());
+	} catch (error) {
+		logger.error('Create skill error:', error.message);
+		res.status(500).json({ error: 'Failed to create skill' });
+	}
+});
+
+router.delete('/:id', async (req, res) => {
+	try {
+		if (!mongoose.isValidObjectId(req.params.id)) {
+			return res.status(400).json({ error: 'Invalid skill id' });
+		}
+
+		const skill = await Skill.findById(req.params.id);
+		if (!skill) return res.status(404).json({ error: 'Skill not found' });
+
+		if (skill.userId.toString() !== req.userId) {
+			return res.status(403).json({ error: 'You can only delete your own skills' });
+		}
+
+		await skill.deleteOne();
+		res.json({ success: true });
+	} catch (error) {
+		logger.error('Delete skill error:', error.message);
+		res.status(500).json({ error: 'Failed to delete skill' });
+	}
+});
+
 export default router;

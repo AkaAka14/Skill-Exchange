@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import pb from '@/lib/pocketbaseClient';
 import apiServerClient from '@/lib/apiServerClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { toast } from 'sonner';
@@ -14,15 +13,11 @@ export const useSkills = () => {
     if (!userId) return [];
     setIsLoading(true);
     try {
-      const records = await pb.collection('skills').getFullList({
-        filter: `userId = "${userId}"`,
-        sort: '-created',
-        $autoCancel: false
-      });
+      const  data  = await apiServerClient.get('/skills', { params: { userId } });
       if (userId === currentUser?.id) {
-        setSkills(records);
+        setSkills(data);
       }
-      return records;
+      return data;
     } catch (err) {
       console.error(err);
       setError(err.message);
@@ -38,12 +33,8 @@ export const useSkills = () => {
   const getWantSkills = useCallback(async (userId) => {
     if (!userId) return [];
     try {
-      const records = await pb.collection('skills').getFullList({
-        filter: `userId = "${userId}" && skillType = "want"`,
-        sort: '-created',
-        $autoCancel: false
-      });
-      return records;
+      const  data  = await apiServerClient.get('/skills', { params: { userId, skillType: 'want' } });
+      return data;
     } catch (err) {
       console.error('Error fetching want skills:', err);
       toast.error('Failed to load want skills');
@@ -51,50 +42,24 @@ export const useSkills = () => {
     }
   }, []);
 
-  const generateSkillEmbedding = async (skillName) => {
-  try {
-    const response = await apiServerClient.post('/skills/embedding', { 
-      skillName 
-    });
-    
-    return response.data.embedding;
-    
-  } catch (err) {
-    console.error('Embedding generation error:', err);
-    return null;
-  }
-};
 
   const addSkill = async (skillData) => {
     if (!currentUser) return null;
     try {
-      // Generate embedding before saving
-      const embedding = await generateSkillEmbedding(skillData.skillName);
-      
-      const recordData = {
-        ...skillData,
-        userId: currentUser.id,
-      };
-      
-      if (embedding) {
-        recordData.embedding = embedding;
-      }
-
-      const record = await pb.collection('skills').create(recordData, { $autoCancel: false });
-      
-      setSkills(prev => [record, ...prev]);
+      const  data = await apiServerClient.post('/skills', skillData);
+      setSkills(prev => [data, ...prev]);
       toast.success('Skill added successfully');
-      return record;
+      return data;
     } catch (err) {
       console.error(err);
-      toast.error(err.message || 'Failed to add skill');
+      toast.error(err.response?.data?.error || 'Failed to add skill');
       throw err;
     }
   };
 
   const removeSkill = async (skillId) => {
     try {
-      await pb.collection('skills').delete(skillId, { $autoCancel: false });
+      await apiServerClient.delete(`/skills/${skillId}`);
       setSkills(prev => prev.filter(s => s.id !== skillId));
       toast.success('Skill removed');
     } catch (err) {
@@ -111,7 +76,6 @@ export const useSkills = () => {
     getSkillsByUser,
     getWantSkills,
     addSkill,
-    removeSkill,
-    generateSkillEmbedding
+    removeSkill
   };
 };

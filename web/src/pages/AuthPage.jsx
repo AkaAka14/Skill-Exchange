@@ -23,7 +23,7 @@ const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || "/profile";
+  const from = location.state?.from?.pathname || "/home";
 
   const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -60,7 +60,7 @@ const AuthPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
       <Helmet>
-        <title>{isLogin ? 'Sign In | SkillSwap AI' : 'Sign Up | SkillSwap AI'}</title>
+        <title>{isLogin ? 'Sign In | Saheli' : 'Sign Up | Saheli'}</title>
       </Helmet>
 
       <motion.div 
@@ -74,7 +74,7 @@ const AuthPage = () => {
             {isLogin ? 'Welcome back' : 'Create an account'}
           </h2>
           <p className="text-sm text-muted-foreground mt-2">
-            {isLogin ? 'Enter your credentials to access your account' : 'Enter your details to join SkillSwap AI'}
+            {isLogin ? 'Enter your credentials to access your account' : 'Enter your details to join Saheli'}
           </p>
         </div>
 

@@ -1,92 +1,69 @@
 import { useState, useCallback } from 'react';
-import pb from '@/lib/pocketbaseClient';
-import { useAuth } from '@/contexts/AuthContext.jsx';
-import { toast } from 'sonner';
+import apiServerClient from '@/lib/apiServerClient';
 
-export const useReviews = () => {
-  const { currentUser } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+/**
+ * useReviews(userId)
+ *
+ * Fetches all reviews for a user, lets you submit or delete your own.
+ * Call with the profile owner's ID, not the logged-in user's ID.
+ */
+export function useReviews(userId) {
+  const [reviews, setReviews] = useState([]);
+  const [avgRating, setAvgRating] = useState(null);
+  const [count, setCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const getReviewsForUser = useCallback(async (userId) => {
-    if (!userId) return [];
-    setIsLoading(true);
+  const fetchReviews = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    setError(null);
     try {
-      const records = await pb.collection('reviews').getFullList({
-        filter: `revieweeId = "${userId}"`,
-        sort: '-created',
-        expand: 'reviewerId',
-        $autoCancel: false
-      });
-      return records;
+      const data = await apiServerClient.get(`/reviews/${userId}`);
+      setReviews(data.reviews);
+      setAvgRating(data.avgRating);
+      setCount(data.count);
     } catch (err) {
-      console.error('Error fetching reviews:', err);
-      return [];
+      setError(err.message || 'Failed to load reviews');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
-  const getAverageRating = useCallback(async (userId) => {
-    const reviews = await getReviewsForUser(userId);
-    if (!reviews || reviews.length === 0) return { average: 0, count: 0 };
-    const sum = reviews.reduce((acc, rev) => acc + (Number(rev.rating) || 0), 0);
-    const avg = sum / reviews.length;
-    return {
-      average: isNaN(avg) ? 0 : avg.toFixed(1),
-      count: reviews.length
-    };
-  }, [getReviewsForUser]);
+  const submitReview = useCallback(
+    async ({ rating, comment }) => {
+      try {
+        const newReview = await apiServerClient.post(`/reviews/${userId}`, {
+          rating,
+          comment,
+        });
+       
+        await fetchReviews();
+        return newReview;
+      } catch (err) {
+        throw new Error(err.message || 'Failed to submit review');
+      }
+    },
+    [userId, fetchReviews]
+  );
 
-  const createReview = async (revieweeId, rating, text) => {
-    if (!currentUser) return null;
+  const deleteReview = useCallback(async () => {
     try {
-      const record = await pb.collection('reviews').create({
-        reviewerId: currentUser.id,
-        revieweeId,
-        rating,
-        feedbackText: text
-      }, { $autoCancel: false });
-      toast.success('Review submitted successfully');
-      return record;
+      await apiServerClient.delete(`/reviews/${userId}`);
+      await fetchReviews();
     } catch (err) {
-      console.error('Error creating review:', err);
-      toast.error('Failed to submit review');
-      throw err;
+      throw new Error(err.message || 'Failed to delete review');
     }
-  };
-
-  const updateReview = async (reviewId, rating, text) => {
-    try {
-      const record = await pb.collection('reviews').update(reviewId, {
-        rating,
-        feedbackText: text
-      }, { $autoCancel: false });
-      toast.success('Review updated');
-      return record;
-    } catch (err) {
-      console.error('Error updating review:', err);
-      toast.error('Failed to update review');
-      throw err;
-    }
-  };
-
-  const deleteReview = async (reviewId) => {
-    try {
-      await pb.collection('reviews').delete(reviewId, { $autoCancel: false });
-      toast.success('Review deleted');
-    } catch (err) {
-      console.error('Error deleting review:', err);
-      toast.error('Failed to delete review');
-      throw err;
-    }
-  };
+  }, [userId, fetchReviews]);
 
   return {
-    isLoading,
-    getReviewsForUser,
-    getAverageRating,
-    createReview,
-    updateReview,
-    deleteReview
+    reviews,
+    avgRating,
+    count,
+    loading,
+    error,
+    fetchReviews,
+    submitReview,
+    deleteReview,
   };
-};
+}

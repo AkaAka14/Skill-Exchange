@@ -1,83 +1,51 @@
 import { useState, useCallback } from 'react';
-import pb from '@/lib/pocketbaseClient';
-import { useAuth } from '@/contexts/AuthContext.jsx';
-import { toast } from 'sonner';
+import apiServerClient from '@/lib/apiServerClient';
 
-export const useFavorites = () => {
-  const { currentUser } = useAuth();
+
+export function useFavorites() {
   const [favorites, setFavorites] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const getFavorites = useCallback(async () => {
-    if (!currentUser) return [];
-    setIsLoading(true);
+  const fetchFavorites = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const records = await pb.collection('favorites').getFullList({
-        filter: `userId = "${currentUser.id}"`,
-        $autoCancel: false
-      });
-      setFavorites(records);
-      return records;
+      const data = await apiServerClient.get('/favorites');
+      setFavorites(data);
     } catch (err) {
-      console.error('Error fetching favorites:', err);
-      return [];
+      setError(err.message || 'Failed to load favorites');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [currentUser]);
+  }, []);
 
-  const isFavorited = useCallback((userId) => {
-    return favorites.some(f => f.favoriteUserId === userId);
-  }, [favorites]);
-
-  const addFavorite = async (favoriteUserId) => {
-    if (!currentUser) return null;
+  
+  const toggleFavorite = useCallback(async (userId) => {
     try {
-      const record = await pb.collection('favorites').create({
-        userId: currentUser.id,
-        favoriteUserId
-      }, { $autoCancel: false });
-      setFavorites(prev => [...prev, record]);
-      toast.success('Saved to favorites');
-      return record;
+      const result = await apiServerClient.post(`/favorites/${userId}`);
+      return result; // { favorited: true/false }
     } catch (err) {
-      console.error('Error adding favorite:', err);
-      toast.error('Failed to save favorite');
-      throw err;
+      throw new Error(err.message || 'Failed to toggle favorite');
     }
-  };
+  }, []);
 
-  const removeFavorite = async (favoriteUserId) => {
-    if (!currentUser) return;
+ 
+  const checkFavoriteStatus = useCallback(async (userId) => {
     try {
-      const favorite = favorites.find(f => f.favoriteUserId === favoriteUserId);
-      if (favorite) {
-        await pb.collection('favorites').delete(favorite.id, { $autoCancel: false });
-        setFavorites(prev => prev.filter(f => f.id !== favorite.id));
-        toast.success('Removed from favorites');
-      }
-    } catch (err) {
-      console.error('Error removing favorite:', err);
-      toast.error('Failed to remove favorite');
-      throw err;
+      const result = await apiServerClient.get(`/favorites/${userId}/status`);
+      return result.favorited;
+    } catch {
+      return false;
     }
-  };
-
-  const toggleFavorite = async (favoriteUserId) => {
-    if (isFavorited(favoriteUserId)) {
-      await removeFavorite(favoriteUserId);
-    } else {
-      await addFavorite(favoriteUserId);
-    }
-  };
+  }, []);
 
   return {
     favorites,
-    isLoading,
-    getFavorites,
-    isFavorited,
-    addFavorite,
-    removeFavorite,
-    toggleFavorite
+    loading,
+    error,
+    fetchFavorites,
+    toggleFavorite,
+    checkFavoriteStatus,
   };
-};
+}

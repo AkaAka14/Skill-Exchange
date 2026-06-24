@@ -1,48 +1,66 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import pb from '@/lib/pocketbaseClient';
+import apiServerClient from '@/lib/apiServerClient';
+import { disconnectSocket } from '@/lib/socketClient';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(pb.authStore.model);
-  const [isAuthenticated, setIsAuthenticated] = useState(pb.authStore.isValid);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+
   useEffect(() => {
-    // Check initial auth state
-    setIsAuthenticated(pb.authStore.isValid);
-    setCurrentUser(pb.authStore.model);
-    setIsLoading(false);
+    const bootstrap = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const  data  = await apiServerClient.get('/auth/me');
+        setCurrentUser(data.user);
+        setIsAuthenticated(true);
+      } catch (err) {
 
-    // Subscribe to auth state changes
-    const unsubscribe = pb.authStore.onChange((token, model) => {
-      setCurrentUser(model);
-      setIsAuthenticated(!!model);
-    });
-
-    return () => unsubscribe();
+        localStorage.removeItem('token');
+        setCurrentUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    bootstrap();
   }, []);
 
   const login = async (email, password) => {
-    const authData = await pb.collection('users').authWithPassword(email, password, { $autoCancel: false });
-    return authData;
+    const  data  = await apiServerClient.post('/auth/login', { email, password });
+    localStorage.setItem('token', data.token);
+    setCurrentUser(data.user);
+    setIsAuthenticated(true);
+    return data;
   };
 
-  const signup = async (data) => {
-    const record = await pb.collection('users').create({
-      ...data,
-      emailVisibility: true,
-    }, { $autoCancel: false });
-    
-    // Auto login after signup
-    await login(data.email, data.password);
-    return record;
+  const signup = async ({ name, email, password }) => {
+    const  data  = await apiServerClient.post('/auth/register', { name, email, password });
+    localStorage.setItem('token', data.token);
+    setCurrentUser(data.user);
+    setIsAuthenticated(true);
+    return data;
   };
 
   const logout = () => {
-    pb.authStore.clear();
+    localStorage.removeItem('token');
+    disconnectSocket();
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+  };
+
+  
+  const updateCurrentUser = (updatedUser) => {
+    setCurrentUser(updatedUser);
   };
 
   const value = {
@@ -51,6 +69,7 @@ export const AuthProvider = ({ children }) => {
     login,
     signup,
     logout,
+    updateCurrentUser,
   };
 
   if (isLoading) {

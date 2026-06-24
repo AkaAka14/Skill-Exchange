@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { Button } from '@/components/ui/button';
 import { Sparkles } from 'lucide-react';
+import { Heart } from 'lucide-react';
 
 const Header = () => {
   const { isAuthenticated, logout, currentUser } = useAuth();
@@ -21,7 +22,7 @@ const Header = () => {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 text-primary">
           <Sparkles className="h-6 w-6" />
-          <span className="font-bold text-xl font-heading tracking-tight text-white">SkillSwap AI</span>
+          <span className="font-bold text-xl font-heading tracking-tight text-white">Saheli</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
@@ -45,6 +46,13 @@ const Header = () => {
                 className={`text-sm font-medium transition-colors hover:text-primary ${location.pathname.startsWith('/profile') ? 'text-primary' : 'text-muted-foreground'}`}
               >
                 Profile
+              </Link>
+              <Link 
+              to="/favorites" 
+              className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-1 ${isActive('/favorites') ? 'text-primary' : 'text-muted-foreground'}`}
+            >
+              <Heart className={`h-4 w-4 ${isActive('/favorites') ? 'fill-rose-500 stroke-rose-500' : ''}`} />
+              Saved
               </Link>
             </>   
           ) : null}

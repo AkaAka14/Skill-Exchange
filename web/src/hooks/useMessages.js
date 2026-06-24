@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
-import pb from '@/lib/pocketbaseClient';
+import { useState, useCallback } from 'react';
+import apiServerClient from '@/lib/apiServerClient';
+import { getSocket } from '@/lib/socketClient';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 
 export const useMessages = () => {
@@ -11,38 +12,8 @@ export const useMessages = () => {
     if (!currentUser) return;
     setIsLoading(true);
     try {
-      // Fetch all messages involving the current user
-      const records = await pb.collection('messages').getFullList({
-        filter: `senderId = "${currentUser.id}" || recipientId = "${currentUser.id}"`,
-        sort: '-created',
-        expand: 'senderId,recipientId',
-        $autoCancel: false
-      });
-
-      // Group by conversation partner
-      const convMap = new Map();
-      
-      records.forEach(msg => {
-        const otherUserId = msg.senderId === currentUser.id ? msg.recipientId : msg.senderId;
-        const otherUser = msg.senderId === currentUser.id ? msg.expand?.recipientId : msg.expand?.senderId;
-        
-        if (!otherUser) return;
-
-        if (!convMap.has(otherUserId)) {
-          convMap.set(otherUserId, {
-            otherUser,
-            lastMessage: msg,
-            unreadCount: (msg.recipientId === currentUser.id && !msg.isRead) ? 1 : 0
-          });
-        } else {
-          const existing = convMap.get(otherUserId);
-          if (msg.recipientId === currentUser.id && !msg.isRead) {
-            existing.unreadCount += 1;
-          }
-        }
-      });
-
-      setConversations(Array.from(convMap.values()));
+      const  data  = await apiServerClient.get('/messages/conversations');
+      setConversations(data);
     } catch (err) {
       console.error('Error fetching conversations:', err);
     } finally {
@@ -53,59 +24,57 @@ export const useMessages = () => {
   const getConversationHistory = useCallback(async (otherUserId) => {
     if (!currentUser || !otherUserId) return [];
     try {
-      const records = await pb.collection('messages').getFullList({
-        filter: `(senderId = "${currentUser.id}" && recipientId = "${otherUserId}") || (senderId = "${otherUserId}" && recipientId = "${currentUser.id}")`,
-        sort: 'created',
-        expand: 'senderId,recipientId',
-        $autoCancel: false
-      });
-      return records;
+      const  data  = await apiServerClient.get(`/messages/${otherUserId}`);
+      return data;
     } catch (err) {
       console.error('Error fetching history:', err);
       return [];
     }
   }, [currentUser]);
 
-  const sendMessage = async (recipientId, text) => {
+
+  const sendMessage = useCallback(async (recipientId, text) => {
     if (!currentUser || !recipientId || !text.trim()) return null;
     try {
-      const record = await pb.collection('messages').create({
-        senderId: currentUser.id,
+      const  data  = await apiServerClient.post('/messages', {
         recipientId,
         messageText: text.trim(),
-        isRead: false
-      }, { $autoCancel: false });
-      return record;
+      });
+      return data;
     } catch (err) {
       console.error('Error sending message:', err);
       throw err;
     }
-  };
+  }, [currentUser]);
 
-  const markAsRead = async (messageId) => {
+  const markAsRead = useCallback(async (messageId) => {
     try {
-      await pb.collection('messages').update(messageId, { isRead: true }, { $autoCancel: false });
+      await apiServerClient.put(`/messages/${messageId}/read`);
     } catch (err) {
       console.error('Error marking as read:', err);
     }
-  };
+  }, []);
 
+  
   const subscribeToMessages = useCallback((callback) => {
-    if (!currentUser) return () => {};
-    
-    pb.collection('messages').subscribe('*', (e) => {
-      if (e.action === 'create' || e.action === 'update') {
-        const msg = e.record;
-        if (msg.senderId === currentUser.id || msg.recipientId === currentUser.id) {
-          callback(e);
-        }
-      }
-    });
+    const socket = getSocket();
+    if (!socket) return () => {};
+
+    const handleNewMessage = (message) => {
+      callback({ action: 'create', record: message });
+    };
+    const handleRead = (payload) => {
+      callback({ action: 'update', record: payload });
+    };
+
+    socket.on('message:new', handleNewMessage);
+    socket.on('message:read', handleRead);
 
     return () => {
-      pb.collection('messages').unsubscribe('*');
+      socket.off('message:new', handleNewMessage);
+      socket.off('message:read', handleRead);
     };
-  }, [currentUser]);
+  }, []);
 
   return {
     conversations,

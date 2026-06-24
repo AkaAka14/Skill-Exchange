@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // This is a more modern, reliable way to map "@" in Vite 7
+    
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },

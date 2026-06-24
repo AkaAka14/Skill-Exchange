@@ -9,10 +9,10 @@ const Footer = () => {
         <div className="col-span-1 md:col-span-2 space-y-4">
           <Link to="/" className="flex items-center gap-2 text-primary">
             <Sparkles className="h-5 w-5" />
-            <span className="font-bold text-lg text-white">SkillSwap AI</span>
+            <span className="font-bold text-lg text-white">Saheli</span>
           </Link>
           <p className="text-muted-foreground max-w-sm">
-            Connect, share, and grow. The intelligent platform for professionals to exchange valuable skills globally.
+            Connect, share, and grow. The intelligent platform for women professionals and students to exchange valuable skills globally.
           </p>
         </div>
         
@@ -34,7 +34,7 @@ const Footer = () => {
         </div>
       </div>
       <div className="container mx-auto px-4 mt-12 pt-8 border-t border-white/10 text-center text-sm text-muted-foreground">
-        &copy; {new Date().getFullYear()} SkillSwap AI. All rights reserved.
+        &copy; {new Date().getFullYear()} Saheli - Akansha Patel. All rights reserved.
       </div>
     </footer>
   );

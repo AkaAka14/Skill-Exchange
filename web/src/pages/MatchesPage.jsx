@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useFavorites } from '@/hooks/useFavorites.js';
@@ -14,9 +13,9 @@ import { SearchX, AlertCircle, Heart, RefreshCw, ListChecks } from 'lucide-react
 
 const MatchesPage = () => {
   const { currentUser } = useAuth();
-  const { getFavorites, isFavorited } = useFavorites();
+  const { favorites, fetchFavorites } = useFavorites();
   const { getWantSkills } = useSkills();
-  
+
   const [matches, setMatches] = useState([]);
   const [wantSkills, setWantSkills] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,38 +23,32 @@ const MatchesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
 
+  // Build a Set of favorited user IDs for fast lookup
+  const favoritedIds = useMemo(
+    () => new Set(favorites.map((f) => f._id?.toString())),
+    [favorites]
+  );
+
   const fetchMatchesData = useCallback(async () => {
     if (!currentUser?.id) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // 1. Sync local favorites and want skills
-      await getFavorites();
+      await fetchFavorites();
       const fetchedWantSkills = await getWantSkills(currentUser.id);
       setWantSkills(fetchedWantSkills);
-      
-      // 2. Fetch semantic matches from Express backend
-      // Note: apiServerClient should already handle the JSON parsing 
-      // depending on how you implemented its .get() method
-      const response = await apiServerClient.get('/matches/semantic');
-      
-      // If your apiServerClient returns the raw response object:
-      const data = response.data ? response.data : response;
-      
-      // Your backend currently returns an array directly: [ {userId, userName, ...}, ... ]
-      let fetchedMatches = Array.isArray(data) ? data : [];
-      
-      setMatches(fetchedMatches);
-      
+
+      const data = await apiServerClient.get('/matches/semantic');
+      setMatches(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Error fetching matches data:', err);
+      console.error('Error fetching matches:', err);
       setError(err.message || 'Failed to fetch matches. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser?.id, getFavorites, getWantSkills]);
+  }, [currentUser?.id, fetchFavorites, getWantSkills]);
 
   useEffect(() => {
     fetchMatchesData();
@@ -63,36 +56,34 @@ const MatchesPage = () => {
 
   const filteredMatches = useMemo(() => {
     let result = matches;
-    
+
     if (activeTab === 'saved') {
-      result = result.filter(match => isFavorited(match.userId));
+      result = result.filter((match) => favoritedIds.has(match.userId?.toString()));
     }
 
     if (searchQuery) {
       const lowerQ = searchQuery.toLowerCase();
-      result = result.filter(match => 
-        // Using match.userName because that's what the backend sends
-        match.userName?.toLowerCase().includes(lowerQ) ||
-        match.matchingSkills?.some(s => s.skillPair?.toLowerCase().includes(lowerQ))
+      result = result.filter(
+        (match) =>
+          match.userName?.toLowerCase().includes(lowerQ) ||
+          match.matchingSkills?.some((s) =>
+            s.skillPair?.toLowerCase().includes(lowerQ)
+          )
       );
     }
-    
+
     return result;
-  }, [matches, searchQuery, activeTab, isFavorited]);
+  }, [matches, searchQuery, activeTab, favoritedIds]);
 
   return (
     <div className="container mx-auto px-4 py-12">
-      <Helmet>
-        <title>AI Matches | SkillSwap</title>
-      </Helmet>
-
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             AI Skill Matches
-            <Button 
-              variant="outline" 
-              size="icon" 
+            <Button
+              variant="outline"
+              size="icon"
               onClick={fetchMatchesData}
               disabled={isLoading}
               className="h-8 w-8 rounded-full bg-transparent border-white/10 hover:bg-white/5"
@@ -100,14 +91,15 @@ const MatchesPage = () => {
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
           </h1>
-          <p className="text-muted-foreground mt-2">Discover partners based on deep skill compatibility.</p>
+          <p className="text-muted-foreground mt-2">
+            Discover partners based on deep skill compatibility.
+          </p>
         </div>
         <div className="w-full md:w-auto">
           <SearchBar onSearch={setSearchQuery} placeholder="Search names or skills..." />
         </div>
       </div>
 
-      {/* Skills Context Bar */}
       {wantSkills.length > 0 && !isLoading && (
         <div className="mb-8 p-4 bg-primary/5 rounded-xl border border-primary/10">
           <h3 className="text-sm font-medium text-primary mb-3 flex items-center gap-2">
@@ -115,8 +107,11 @@ const MatchesPage = () => {
             Matching your needs:
           </h3>
           <div className="flex flex-wrap gap-2">
-            {wantSkills.map(skill => (
-              <span key={skill.id} className="text-xs bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full">
+            {wantSkills.map((skill) => (
+              <span
+                key={skill.id}
+                className="text-xs bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full"
+              >
                 {skill.skillName}
               </span>
             ))}
@@ -140,13 +135,17 @@ const MatchesPage = () => {
             <AlertCircle className="h-5 w-5 text-destructive" />
             <p className="text-destructive-foreground">{error}</p>
           </div>
-          <Button variant="outline" onClick={fetchMatchesData} size="sm">Retry</Button>
+          <Button variant="outline" onClick={fetchMatchesData} size="sm">
+            Retry
+          </Button>
         </div>
       )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-64 w-full rounded-xl bg-white/5" />)}
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-64 w-full rounded-xl bg-white/5" />
+          ))}
         </div>
       ) : filteredMatches.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -157,9 +156,9 @@ const MatchesPage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <MatchCard 
+              <MatchCard
                 userId={match.userId}
-                user ={match} 
+                user={match}
                 compatibilityScore={match.compatibilityScore}
                 matchingSkills={match.matchingSkills}
               />
@@ -171,7 +170,8 @@ const MatchesPage = () => {
           <SearchX className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold text-white mb-2">No matches found</h3>
           <p className="text-muted-foreground max-w-sm mb-6">
-            We couldn't find any skills that overlap with your needs right now. Try adding more specific "Want" skills!
+            We couldn't find any skills that overlap with your needs right now. Try
+            adding more specific "Want" skills!
           </p>
           <Button asChild>
             <a href="/dashboard">Update Skills</a>

@@ -1,5 +1,13 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, '../.env') });
+//console.log('CLOUDINARY CHECK:', process.env.CLOUDINARY_CLOUD_NAME, process.env.CLOUDINARY_API_KEY ? 'KEY_SET' : 'KEY_MISSING');
+import { initCloudinary } from './config/cloudinary.js';
+initCloudinary();
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -10,8 +18,15 @@ import { errorMiddleware } from './middleware/error.js';
 import { globalRateLimit } from './middleware/global-rate-limit.js';
 import logger from './utils/logger.js';
 import { BodyLimit } from './constants/common.js';
+import connectDB from './config/db.js';
+import { warmUpEmbeddingModel } from './utils/embeddings.js';
+import { createServer } from 'http';
+import { initSocket } from './sockets/index.js';
 
 const app = express();
+
+await connectDB();
+warmUpEmbeddingModel();
 
 app.set('trust proxy', 1);
 
@@ -52,7 +67,7 @@ app.use(express.urlencoded({
 	limit: BodyLimit,
 }));
 
-app.use('/', routes());
+app.use('/', routes);
 
 app.use(errorMiddleware);
 
@@ -62,7 +77,12 @@ app.use((req, res) => {
 
 const port = process.env.PORT || 3001;
 
-app.listen(port, () => {
+// Socket.io needs to attach to the raw HTTP server, not the Express app
+// directly, so both REST and realtime traffic share the same port.
+const httpServer = createServer(app);
+initSocket(httpServer);
+
+httpServer.listen(port, () => {
 	logger.info(`🚀 API Server running on http://localhost:${port}`);
 });
 
