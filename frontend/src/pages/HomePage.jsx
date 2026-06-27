@@ -267,7 +267,7 @@ const HomePage = () => {
                   className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/25"
                 >
                   <Link to="/auth">
-                    Join SkillSwap AI
+                    Join Saheli
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
